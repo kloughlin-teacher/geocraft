@@ -1,0 +1,2370 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GeoCraft: Dig to Earth's Core</title>
+  <style>
+    :root {
+      --paper: #f7f3ea;
+      --ink: #1f2a30;
+      --card: #fffdf8;
+      --border: #d7cdb9;
+      --accent: #1d7f78;
+      --accent-2: #f3a712;
+      --good: #2e8540;
+      --sky-1: #8dc8ff;
+      --sky-2: #d7edff;
+      --ground-1: #8b5d3b;
+      --ground-2: #5f3f2a;
+      --dug: #d7e8f6;
+      --shadow: 0 10px 24px rgba(15, 26, 35, 0.14);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Avenir Next", "Gill Sans", "Trebuchet MS", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 15% -10%, #fff6dc 0 22%, transparent 23%),
+        radial-gradient(circle at 85% -20%, #ffe7d1 0 20%, transparent 21%),
+        linear-gradient(180deg, #f9f6ef 0%, #efe7d8 100%);
+      min-height: 100vh;
+      padding: 14px;
+      display: flex;
+      justify-content: center;
+      animation: fade-in 420ms ease;
+    }
+
+    .app {
+      width: min(1200px, 100%);
+      display: grid;
+      grid-template-columns: 1.3fr 0.9fr;
+      gap: 14px;
+    }
+
+    .panel {
+      background: color-mix(in srgb, var(--card) 94%, #ffffff);
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 12px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: clamp(0.72rem, 2.2vw, 2rem);
+      line-height: 1.1;
+      letter-spacing: 0.01em;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 0;
+      flex: 1;
+    }
+
+    .brand-logo {
+      display: block;
+      width: clamp(176px, 28vw, 252px);
+      height: auto;
+      filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.22));
+      user-select: none;
+      pointer-events: none;
+      flex-shrink: 0;
+    }
+
+    .brand-text {
+      min-width: 0;
+      flex: 1;
+      container-type: inline-size;
+    }
+
+    @supports (font-size: 1cqw) {
+      h1 {
+        font-size: clamp(0.72rem, 4.5cqw, 2rem);
+      }
+    }
+
+    .subtitle {
+      margin: 0;
+      font-size: 0.96rem;
+      line-height: 1.4;
+    }
+
+    .hint-line {
+      margin: 8px 0 0;
+      font-size: 0.84rem;
+      color: #5c5a53;
+    }
+
+    .stats {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .chip {
+      background: #fff8e9;
+      border: 1px solid #ead8ae;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 0.88rem;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .chip.depth-chip {
+      background: linear-gradient(180deg, #fff4cc 0%, #ffe19e 100%);
+      border-color: #df9d2f;
+      color: #54340d;
+      font-weight: 900;
+      font-size: 0.98rem;
+      padding: 7px 12px;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6) inset, 0 2px 5px rgba(113, 68, 20, 0.22);
+    }
+
+    .game-frame {
+      margin-top: 10px;
+      background: linear-gradient(180deg, var(--sky-1) 0 14%, var(--ground-1) 14% 100%);
+      border: 2px solid #7f9fb6;
+      border-radius: 14px;
+      padding: 10px;
+      overflow-x: auto;
+      position: relative;
+      isolation: isolate;
+    }
+
+    .game-frame::before {
+      content: "";
+      position: absolute;
+      width: 84px;
+      height: 84px;
+      border-radius: 50%;
+      top: 10px;
+      left: 10px;
+      background: radial-gradient(circle at 35% 35%, #fff9d8 0 36%, #ffd67d 60%, #f5ab46 100%);
+      box-shadow: 0 0 18px rgba(255, 214, 125, 0.45);
+      z-index: -1;
+    }
+
+    .board {
+      --cols: 5;
+      display: grid;
+      grid-template-columns: repeat(var(--cols), 1fr);
+      gap: 4px;
+      min-width: 520px;
+      margin-top: 2px;
+    }
+
+    .column {
+      display: grid;
+      grid-template-rows: repeat(56, 12px);
+      gap: 2px;
+    }
+
+    .block {
+      border: 1px solid rgba(0, 0, 0, 0.2);
+      border-radius: 2px;
+      cursor: pointer;
+      transition: transform 120ms ease, filter 120ms ease;
+      background-repeat: no-repeat, repeat, repeat;
+    }
+
+    .block:hover { transform: translateY(-1px); }
+
+    .block.top-block {
+      outline: 2px solid rgba(255, 248, 210, 0.85);
+      box-shadow:
+        0 0 0 1px rgba(243, 167, 18, 0.65),
+        0 0 7px rgba(255, 214, 102, 0.68);
+      filter: brightness(1.12);
+      animation: top-block-glow 1.2s ease-in-out infinite;
+    }
+
+    .block.diggable {
+      outline: 2px solid #fff8d2;
+      box-shadow:
+        0 0 0 2px rgba(243, 167, 18, 0.88),
+        0 0 8px rgba(255, 214, 102, 0.85),
+        0 0 14px rgba(255, 193, 68, 0.62);
+      filter: brightness(1.2) saturate(1.08);
+      animation: diggable-glow 1.05s ease-in-out infinite;
+    }
+
+    .block.dug {
+      background: repeating-linear-gradient(
+        45deg,
+        #d8ebfb,
+        #d8ebfb 4px,
+        #c9deef 4px,
+        #c9deef 8px
+      ) !important;
+      border-color: rgba(0, 0, 0, 0.08);
+      cursor: default;
+    }
+
+    .legend {
+      margin-top: 8px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      border: 1px solid #ded8ca;
+      background: #fffcf6;
+      border-radius: 9px;
+      padding: 6px 8px;
+      font-size: 0.83rem;
+    }
+
+    .legend-text {
+      display: grid;
+      gap: 2px;
+      line-height: 1.15;
+    }
+
+    .legend-meta {
+      font-size: 0.72rem;
+      color: #4f5d68;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border: 1px solid rgba(0, 0, 0, 0.25);
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    h2 {
+      margin: 0 0 8px;
+      font-size: 1.08rem;
+    }
+
+    .message {
+      font-size: 0.93rem;
+      line-height: 1.35;
+      background: #fff8e6;
+      border: 1px solid #efd796;
+      border-radius: 10px;
+      padding: 8px;
+      min-height: 65px;
+    }
+
+    .progress-wrap {
+      margin-top: 8px;
+    }
+
+    .progress {
+      width: 100%;
+      height: 14px;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid #c7d6df;
+      background: #e8f2f8;
+    }
+
+    .fill {
+      width: 0;
+      height: 100%;
+      background: linear-gradient(90deg, #4fbe83, #f2a93b);
+      transition: width 220ms ease;
+    }
+
+    .button-row {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .readout-panel {
+      margin-top: 10px;
+      border: 1px solid #d1ddcc;
+      border-radius: 12px;
+      background: #f7fcf4;
+      padding: 8px;
+    }
+
+    .readout-title {
+      margin: 0 0 6px;
+      font-size: 0.95rem;
+    }
+
+    .readout-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 0.82rem;
+      margin-top: 6px;
+    }
+
+    .meter {
+      margin-top: 4px;
+      width: 100%;
+      height: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid #bfd0dc;
+      background: #e8f2f8;
+    }
+
+    .meter-fill {
+      height: 100%;
+      width: 0%;
+      transition: width 220ms ease;
+    }
+
+    .meter-fill.temp {
+      background: linear-gradient(90deg, #f7d154, #f08a24, #d94032);
+    }
+
+    .meter-fill.pressure {
+      background: linear-gradient(90deg, #88b8e4, #4e78bf, #213f81);
+    }
+
+    .state-line {
+      margin-top: 8px;
+      font-size: 0.82rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .state-pill {
+      border: 1px solid #bfd5c2;
+      background: #edf8ef;
+      color: #1f5b30;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-weight: 700;
+      font-size: 0.76rem;
+      white-space: nowrap;
+    }
+
+    .points-thermo {
+      margin-top: 10px;
+      border: 1px solid #dfd5bf;
+      border-radius: 12px;
+      background: #fff9ee;
+      padding: 6px;
+      position: relative;
+      overflow: visible;
+      transition: border-color 220ms ease, box-shadow 220ms ease;
+    }
+
+    .header-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .header-row .points-thermo {
+      margin-top: 0;
+      width: clamp(70px, 8vw, 84px);
+      flex-shrink: 0;
+    }
+
+    .header-row .points-thermo .points-title {
+      display: none;
+    }
+
+    .header-row .points-thermo .points-thermo-wrap {
+      grid-template-columns: 1fr;
+      justify-items: center;
+      gap: 4px;
+    }
+
+    .header-row .points-thermo .thermo-labels {
+      display: none;
+    }
+
+    .header-row .points-thermo .points-value {
+      font-size: 0.7rem;
+      text-align: center;
+    }
+
+    .points-title {
+      margin: 0 0 4px;
+      font-size: 0.8rem;
+    }
+
+    .points-thermo-wrap {
+      display: grid;
+      grid-template-columns: auto 20px 1fr;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .thermo-labels {
+      display: grid;
+      gap: 43px;
+      font-size: 0.62rem;
+      color: #5f5446;
+      text-align: right;
+      line-height: 1;
+    }
+
+    .thermo-tube {
+      position: relative;
+      width: 20px;
+      height: 136px;
+      border-radius: 999px;
+      border: 2px solid #b5a481;
+      background: linear-gradient(180deg, #fff4db 0%, #f8e4bf 100%);
+      overflow: hidden;
+      box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.3);
+    }
+
+    .thermo-zero {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      border-top: 2px dashed rgba(89, 76, 53, 0.55);
+      z-index: 2;
+    }
+
+    .thermo-fill {
+      position: absolute;
+      left: 3px;
+      right: 3px;
+      border-radius: 999px;
+      z-index: 1;
+      transition: height 220ms ease;
+    }
+
+    .thermo-fill.pos {
+      bottom: 50%;
+      height: 0%;
+      background: linear-gradient(180deg, #f2ce4e 0%, #eb7f21 100%);
+    }
+
+    .thermo-fill.neg {
+      top: 50%;
+      height: 0%;
+      background: linear-gradient(180deg, #f45f42 0%, #b3281c 100%);
+    }
+
+    .thermo-marker {
+      position: absolute;
+      left: 2px;
+      right: 2px;
+      height: 4px;
+      border-radius: 999px;
+      border: 1px solid rgba(51, 44, 33, 0.35);
+      background: #f4d271;
+      top: calc(50% - 3px);
+      z-index: 3;
+      transition: top 220ms ease, background-color 220ms ease;
+    }
+
+    .points-value {
+      font-weight: 800;
+      font-size: 0.8rem;
+      color: #815217;
+    }
+
+    .points-value.positive { color: #8a4f00; }
+    .points-value.negative { color: #9c2415; }
+    .points-value.neutral { color: #6f5d44; }
+
+    .points-thermo.peak {
+      border-color: #f0b43d;
+      box-shadow:
+        0 0 0 2px rgba(255, 233, 180, 0.95),
+        0 0 16px rgba(245, 169, 40, 0.55);
+      animation: thermo-peak-pulse 1.2s ease-in-out infinite;
+    }
+
+    .points-peak-badge {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      border: 1px solid #9a6419;
+      background: linear-gradient(180deg, #ffe98d 0%, #f5ac33 100%);
+      color: #5f3403;
+      border-radius: 999px;
+      padding: 2px 6px;
+      font-size: 0.6rem;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      opacity: 0;
+      transform: scale(0.7);
+      pointer-events: none;
+      z-index: 6;
+      transition: opacity 180ms ease, transform 180ms ease;
+      box-shadow: 0 2px 8px rgba(98, 55, 12, 0.3);
+    }
+
+    .points-thermo.peak .points-peak-badge {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .points-peak-burst {
+      position: absolute;
+      inset: -6px;
+      border-radius: 14px;
+      border: 2px solid rgba(255, 207, 106, 0.95);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .points-peak-burst.run {
+      animation: points-peak-burst 850ms ease-out;
+    }
+
+    .event-splash {
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%) scale(0.86);
+      width: min(840px, calc(100vw - 20px));
+      border-radius: 16px;
+      border: 3px solid #d9c18a;
+      background: linear-gradient(180deg, #fff7df 0%, #ffe8b8 100%);
+      box-shadow: 0 20px 34px rgba(0, 0, 0, 0.29);
+      padding: 14px 16px;
+      z-index: 1500;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease, transform 220ms ease;
+    }
+
+    .event-splash.show {
+      opacity: 1;
+      transform: translateX(-50%) scale(1);
+      animation: splash-pop 420ms ease, splash-glow 1500ms ease-in-out infinite;
+    }
+
+    .event-splash.layer {
+      border-color: #e1b458;
+      background: linear-gradient(180deg, #fff7e4 0%, #ffe2ab 100%);
+    }
+
+    .event-splash.treasure {
+      border-color: #7dbf73;
+      background: linear-gradient(180deg, #f4fff0 0%, #daf5d1 100%);
+    }
+
+    .event-splash.mission {
+      border-color: #63a2d6;
+      background: linear-gradient(180deg, #eef8ff 0%, #d8eefe 100%);
+    }
+
+    .event-kicker {
+      margin: 0;
+      font-size: 0.75rem;
+      letter-spacing: 0.09em;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #6a4d17;
+    }
+
+    .event-title {
+      margin: 2px 0 3px;
+      font-size: clamp(1.25rem, 3.6vw, 2rem);
+      line-height: 1.05;
+      font-weight: 900;
+      color: #1f2a30;
+    }
+
+    .event-text {
+      margin: 0;
+      font-size: 0.95rem;
+      line-height: 1.3;
+      color: #2f3f49;
+    }
+
+    button {
+      border: 0;
+      background: var(--accent);
+      color: white;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: filter 120ms ease, transform 120ms ease;
+      font-family: inherit;
+    }
+
+    button:hover {
+      filter: brightness(1.07);
+      transform: translateY(-1px);
+    }
+
+    button.alt {
+      background: #4b5e7a;
+    }
+
+    .quiz {
+      margin-top: 12px;
+      border: 1px solid #d6ddcd;
+      background: #f7fced;
+      border-radius: 12px;
+      padding: 9px;
+      display: none;
+      animation: slide-up 220ms ease;
+    }
+
+    .quiz.show { display: block; }
+
+    .quiz h3 {
+      margin: 0 0 6px;
+      font-size: 1rem;
+    }
+
+    .quiz-question {
+      margin: 0 0 8px;
+      font-size: 0.93rem;
+      line-height: 1.35;
+    }
+
+    .answers {
+      display: grid;
+      gap: 6px;
+    }
+
+    .answers button {
+      text-align: left;
+      width: 100%;
+      font-weight: 600;
+      background: #2d7f4a;
+    }
+
+    .facts {
+      margin-top: 12px;
+      display: grid;
+      gap: 8px;
+      max-height: 360px;
+      overflow: auto;
+      padding-right: 3px;
+    }
+
+    .treasures {
+      margin-top: 10px;
+      display: grid;
+      gap: 8px;
+      max-height: 220px;
+      overflow: auto;
+      padding-right: 3px;
+    }
+
+    .treasure-card {
+      border: 1px solid #d9e4d4;
+      background: #f8fdf4;
+      border-radius: 10px;
+      padding: 8px;
+      animation: reveal 260ms ease;
+    }
+
+    .treasure-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.9rem;
+      margin: 0 0 4px;
+    }
+
+    .treasure-icon {
+      font-size: 1rem;
+      margin-right: 4px;
+    }
+
+    .rarity {
+      font-size: 0.7rem;
+      border-radius: 999px;
+      padding: 2px 7px;
+      border: 1px solid #cfd9e4;
+      background: #f0f6fb;
+      white-space: nowrap;
+    }
+
+    .rarity.common {
+      border-color: #c6d8c9;
+      background: #edf7ef;
+      color: #2f5f36;
+    }
+
+    .rarity.uncommon {
+      border-color: #b8cee2;
+      background: #eaf2fa;
+      color: #24547a;
+    }
+
+    .rarity.rare {
+      border-color: #d6c7ea;
+      background: #f3ecfb;
+      color: #5e3a8a;
+    }
+
+    .treasure-meta {
+      margin: 0;
+      font-size: 0.78rem;
+      color: #49606a;
+      line-height: 1.35;
+    }
+
+    .fact-card {
+      border: 1px solid #d8e2eb;
+      background: #f7fbff;
+      border-radius: 10px;
+      padding: 8px;
+      animation: reveal 260ms ease;
+    }
+
+    .fact-card h3 {
+      margin: 0 0 4px;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .state {
+      font-size: 0.75rem;
+      background: #e9f1f7;
+      border: 1px solid #c6d8e4;
+      border-radius: 999px;
+      padding: 2px 8px;
+      white-space: nowrap;
+    }
+
+    .fact-card ul {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 0.89rem;
+      line-height: 1.35;
+    }
+
+    .note {
+      margin-top: 8px;
+      font-size: 0.78rem;
+      color: #5b5f5d;
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes reveal {
+      from { opacity: 0; transform: translateX(4px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes slide-up {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes splash-pop {
+      0% { transform: translateX(-50%) scale(0.82); }
+      52% { transform: translateX(-50%) scale(1.03); }
+      100% { transform: translateX(-50%) scale(1); }
+    }
+
+    @keyframes splash-glow {
+      0% { box-shadow: 0 20px 34px rgba(0, 0, 0, 0.29); }
+      50% { box-shadow: 0 22px 40px rgba(0, 0, 0, 0.34); }
+      100% { box-shadow: 0 20px 34px rgba(0, 0, 0, 0.29); }
+    }
+
+    @keyframes diggable-glow {
+      0% {
+        box-shadow:
+          0 0 0 2px rgba(243, 167, 18, 0.8),
+          0 0 6px rgba(255, 214, 102, 0.72),
+          0 0 12px rgba(255, 193, 68, 0.5);
+        filter: brightness(1.14) saturate(1.04);
+      }
+      50% {
+        box-shadow:
+          0 0 0 2px rgba(255, 189, 55, 0.95),
+          0 0 12px rgba(255, 221, 130, 0.95),
+          0 0 20px rgba(255, 188, 65, 0.72);
+        filter: brightness(1.3) saturate(1.12);
+      }
+      100% {
+        box-shadow:
+          0 0 0 2px rgba(243, 167, 18, 0.8),
+          0 0 6px rgba(255, 214, 102, 0.72),
+          0 0 12px rgba(255, 193, 68, 0.5);
+        filter: brightness(1.14) saturate(1.04);
+      }
+    }
+
+    @keyframes top-block-glow {
+      0% {
+        box-shadow:
+          0 0 0 1px rgba(243, 167, 18, 0.62),
+          0 0 5px rgba(255, 214, 102, 0.58);
+        filter: brightness(1.08);
+      }
+      50% {
+        box-shadow:
+          0 0 0 1px rgba(255, 189, 55, 0.78),
+          0 0 10px rgba(255, 221, 130, 0.82);
+        filter: brightness(1.2);
+      }
+      100% {
+        box-shadow:
+          0 0 0 1px rgba(243, 167, 18, 0.62),
+          0 0 5px rgba(255, 214, 102, 0.58);
+        filter: brightness(1.08);
+      }
+    }
+
+    @keyframes thermo-peak-pulse {
+      0% {
+        box-shadow:
+          0 0 0 2px rgba(255, 233, 180, 0.92),
+          0 0 14px rgba(245, 169, 40, 0.45);
+      }
+      50% {
+        box-shadow:
+          0 0 0 2px rgba(255, 240, 198, 1),
+          0 0 22px rgba(245, 169, 40, 0.72);
+      }
+      100% {
+        box-shadow:
+          0 0 0 2px rgba(255, 233, 180, 0.92),
+          0 0 14px rgba(245, 169, 40, 0.45);
+      }
+    }
+
+    @keyframes points-peak-burst {
+      0% {
+        opacity: 0.9;
+        transform: scale(0.92);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(1.18);
+      }
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .board { min-width: 100%; }
+
+      .header-row {
+        flex-direction: column;
+      }
+
+      .header-row .points-thermo {
+        width: 100%;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .brand {
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .brand-text {
+        width: 100%;
+      }
+
+      .subtitle,
+      .hint-line {
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="panel">
+      <div class="header-row">
+        <div class="brand">
+          <img class="brand-logo" src="logo.png" alt="GeoCraft logo showing Earth and its layers" onerror="this.style.display='none'" />
+          <div class="brand-text">
+            <h1>GeoCraft: Dig to Earth's Core</h1>
+            <p class="subtitle">Click a glowing block to dig. Answer layer checkpoint questions to unlock deeper layers.</p>
+            <p class="hint-line">Class tip: This is a learning model of layer order and properties. Thickness is simplified for gameplay.</p>
+          </div>
+        </div>
+
+        <section class="points-thermo" id="pointsThermoCard" aria-live="polite">
+          <div class="points-peak-burst" id="pointsPeakBurst" aria-hidden="true"></div>
+          <div class="points-peak-badge" aria-hidden="true">MAX+</div>
+          <h3 class="points-title">Discovery Points Thermometer</h3>
+          <div class="points-thermo-wrap">
+            <div class="thermo-labels" aria-hidden="true">
+              <span>+120</span>
+              <span>0</span>
+              <span>-120</span>
+            </div>
+            <div class="thermo-tube" aria-hidden="true">
+              <div class="thermo-zero"></div>
+              <div class="thermo-fill pos" id="pointsFillPos"></div>
+              <div class="thermo-fill neg" id="pointsFillNeg"></div>
+              <div class="thermo-marker" id="pointsMarker"></div>
+            </div>
+            <div class="points-value neutral" id="pointsThermoValue">0 pts</div>
+          </div>
+        </section>
+      </div>
+
+      <div class="stats">
+        <span class="chip" id="blocksDug">Blocks Dug: 0</span>
+        <span class="chip depth-chip" id="depth">Deepest Depth: 0 km</span>
+        <span class="chip" id="currentLayer">Current Layer: Surface</span>
+        <span class="chip" id="quizScore">Quiz Score: 0 / 16</span>
+        <span class="chip" id="discoveryPoints">Discovery Points: 0</span>
+        <span class="chip" id="treasureCount">Treasures Found: 0</span>
+      </div>
+
+      <div class="game-frame">
+        <div class="board" id="board" aria-label="Earth digging board"></div>
+      </div>
+
+      <div class="legend" id="legend" aria-label="Layer legend"></div>
+      <p class="note">Start by digging through the thin crust. Reach the inner core to complete your geology mission.</p>
+    </section>
+
+    <aside class="panel">
+      <h2>Geology Notebook</h2>
+      <div class="message" id="message">Mission start: Dig a glowing block to begin your trip through Earth's layers.</div>
+
+      <div class="progress-wrap">
+        <strong>Journey to Core</strong>
+        <div class="progress" aria-hidden="true">
+          <div class="fill" id="fill"></div>
+        </div>
+      </div>
+
+      <div class="button-row">
+        <button id="restartBtn" type="button">Restart Mission</button>
+      </div>
+
+      <section class="quiz" id="quizPanel" aria-live="polite">
+        <h3 id="quizTitle">Checkpoint Quiz</h3>
+        <p class="quiz-question" id="quizQuestion"></p>
+        <div class="answers" id="answers"></div>
+      </section>
+
+      <section class="readout-panel" aria-live="polite">
+        <h3 class="readout-title">Layer Conditions</h3>
+        <div class="readout-row">
+          <span>Temperature</span>
+          <strong id="tempValue">0 C</strong>
+        </div>
+        <div class="meter" aria-hidden="true">
+          <div class="meter-fill temp" id="tempFill"></div>
+        </div>
+        <div class="readout-row">
+          <span>Pressure</span>
+          <strong id="pressureValue">0 GPa</strong>
+        </div>
+        <div class="meter" aria-hidden="true">
+          <div class="meter-fill pressure" id="pressureFill"></div>
+        </div>
+        <div class="state-line">
+          <span>State of matter</span>
+          <span class="state-pill" id="stateValue">Solid</span>
+        </div>
+      </section>
+
+      <h2 style="margin-top: 12px;">Treasure Finds</h2>
+      <div class="treasures" id="treasures"></div>
+
+      <h2 style="margin-top: 12px;">Discovered Layers</h2>
+      <div class="facts" id="facts"></div>
+    </aside>
+  </main>
+
+  <div class="event-splash" id="eventSplash" role="status" aria-live="assertive" aria-atomic="true">
+    <p class="event-kicker" id="eventKicker"></p>
+    <p class="event-title" id="eventTitle"></p>
+    <p class="event-text" id="eventText"></p>
+  </div>
+
+  <script>
+    const COLS = 5;
+    const ROWS = 56;
+    const EARTH_DEPTH_KM = 6371;
+    const LAYER_QUESTION_TARGETS = {
+      crust: 1,
+      mantle: 5,
+      outer_core: 5,
+      inner_core: 5
+    };
+    const TOTAL_REQUIRED_QUESTIONS = Object.values(LAYER_QUESTION_TARGETS).reduce((sum, value) => sum + value, 0);
+
+    const layers = [
+      {
+        id: "crust",
+        name: "Crust",
+        color: "#8f6a47",
+        textureImage: "linear-gradient(145deg, rgba(255,255,255,0.12), rgba(0,0,0,0.14)), repeating-linear-gradient(45deg, rgba(0,0,0,0.11) 0 2px, transparent 2px 6px), repeating-linear-gradient(-45deg, rgba(255,255,255,0.08) 0 3px, transparent 3px 8px)",
+        textureSize: "100% 100%, 8px 8px, 10px 10px",
+        minDepth: 0,
+        maxDepth: 70,
+        state: "thin, rocky outer layer",
+        matterState: "Solid rock",
+        tempRangeC: [0, 700],
+        pressureRangeGPa: [0, 1],
+        facts: [
+          "Earth's outermost layer is the thin, rocky crust.",
+          "There are two types: oceanic crust and continental crust.",
+          "Oceanic crust is thinner but heavier than continental crust.",
+          "Continental crust includes bedrock, often covered by subsoil and topsoil."
+        ]
+      },
+      {
+        id: "mantle",
+        name: "Mantle",
+        color: "#c57a3e",
+        textureImage: "linear-gradient(150deg, rgba(255,255,255,0.10), rgba(0,0,0,0.18)), repeating-linear-gradient(20deg, rgba(124,71,24,0.2) 0 3px, transparent 3px 9px), radial-gradient(circle at 30% 30%, rgba(255,190,120,0.15), transparent 45%)",
+        textureSize: "100% 100%, 12px 12px, 100% 100%",
+        minDepth: 70,
+        maxDepth: 2900,
+        state: "largest layer of very hot, dense rock",
+        matterState: "Mostly solid (slow flow)",
+        tempRangeC: [700, 3700],
+        pressureRangeGPa: [1, 136],
+        facts: [
+          "The mantle surrounds the outer core and is Earth's largest, thickest layer.",
+          "The upper and lower mantle are solid rock.",
+          "In the middle mantle, material is neither fully liquid nor solid and moves slowly.",
+          "Earth's crust plus the solid top of the mantle is broken into tectonic plates."
+        ]
+      },
+      {
+        id: "outer_core",
+        name: "Outer Core",
+        color: "#ea8e11",
+        textureImage: "linear-gradient(160deg, rgba(255,255,255,0.15), rgba(0,0,0,0.2)), repeating-linear-gradient(0deg, rgba(255,166,79,0.20) 0 2px, rgba(153,74,3,0.18) 2px 5px), radial-gradient(circle at 70% 25%, rgba(255,210,120,0.25), transparent 40%)",
+        textureSize: "100% 100%, 100% 8px, 100% 100%",
+        minDepth: 2900,
+        maxDepth: 5150,
+        state: "liquid, very hot metal",
+        matterState: "Liquid metal",
+        tempRangeC: [3700, 5500],
+        pressureRangeGPa: [136, 330],
+        facts: [
+          "The outer core is made of very hot metal that is liquid, not solid.",
+          "It sits below the mantle and surrounds the inner core.",
+          "Seismic waves helped scientists tell that this layer is liquid."
+        ]
+      },
+      {
+        id: "inner_core",
+        name: "Inner Core",
+        color: "#d9482b",
+        textureImage: "linear-gradient(155deg, rgba(255,255,255,0.14), rgba(0,0,0,0.25)), repeating-linear-gradient(45deg, rgba(120,12,8,0.22) 0 2px, transparent 2px 6px), repeating-linear-gradient(-45deg, rgba(255,123,96,0.16) 0 2px, transparent 2px 6px)",
+        textureSize: "100% 100%, 9px 9px, 9px 9px",
+        minDepth: 5150,
+        maxDepth: 6371,
+        state: "solid, very hot metal",
+        matterState: "Solid metal",
+        tempRangeC: [5500, 6000],
+        pressureRangeGPa: [330, 360],
+        facts: [
+          "Earth's deepest layer is the solid inner core.",
+          "Its metal may be nearly as hot as the sun's surface.",
+          "Inge Lehmann used seismic records to show the core has two parts."
+        ]
+      }
+    ];
+
+    const QUESTION_BANK = {
+      crust: [
+        {
+          question: "You discover fossilized seashells inside a rock layer on land. What does this most likely suggest?",
+          choices: ["The area was once underwater", "The mantle pushed the shells upward", "The inner core created the fossils", "The crust formed instantly"],
+          answer: 0
+        },
+        {
+          question: "This crust sample is thin and very dense. Which type of crust is it most likely?",
+          choices: ["Continental crust", "Oceanic crust", "Mantle rock", "Inner core rock"],
+          answer: 1
+        },
+        {
+          question: "If blocks of crust suddenly slip past each other along a fault, what will most likely occur?",
+          choices: ["A volcanic eruption", "A tsunami", "An earthquake", "A mountain slowly forms"],
+          answer: 2
+        },
+        {
+          question: "Why are fossils found in the crust but not in deeper layers?",
+          choices: ["Living things only exist near Earth's surface", "Fossils sink toward the core", "Mantle rock destroys fossils instantly", "Fossils form in liquid metal"],
+          answer: 0
+        },
+        {
+          question: "You observe layered sediment blocks in the crust. Which process most likely formed them?",
+          choices: ["River deposition over time", "Core compression", "Magnetic field movement", "Sudden mantle explosion"],
+          answer: 0
+        }
+      ],
+      mantle: [
+        {
+          question: "Slow circular movement in the mantle can cause:",
+          choices: ["The core to cool rapidly", "Tectonic plates to move", "Fossils to form", "The crust to melt completely"],
+          answer: 1
+        },
+        {
+          question: "The mantle is solid but moves slowly. Why?",
+          choices: ["It is made of liquid lava", "High heat and pressure allow slow flow", "It is hollow inside", "It is made of water"],
+          answer: 1
+        },
+        {
+          question: "If mantle material rises beneath oceanic crust, what feature may form?",
+          choices: ["A mid-ocean ridge", "A deep trench", "A fossil bed", "A desert"],
+          answer: 0
+        },
+        {
+          question: "If mantle material cools and sinks, what is likely happening above it?",
+          choices: ["Plates move toward each other", "Plates move apart", "Earth's rotation stops", "The crust disappears"],
+          answer: 0
+        },
+        {
+          question: "Oceanic crust sits lower than continental crust because:",
+          choices: ["It is colder", "It is thinner and denser", "It is made of soil", "It floats on water"],
+          answer: 1
+        },
+        {
+          question: "Rocks closest to a mid-ocean ridge are youngest. What does this reveal?",
+          choices: ["The ocean floor is shrinking", "New crust forms at ridges", "Fossils are forming there", "The mantle has stopped moving"],
+          answer: 1
+        }
+      ],
+      outer_core: [
+        {
+          question: "S-waves stop when they reach the outer core. What does this tell scientists?",
+          choices: ["The outer core is solid", "The outer core is liquid", "The outer core is cold", "The outer core is hollow"],
+          answer: 1
+        },
+        {
+          question: "Movement in the outer core helps create Earth's magnetic field because:",
+          choices: ["The crust spins faster", "Liquid metal moves and generates electricity", "Fossils create magnetism", "The mantle freezes"],
+          answer: 1
+        },
+        {
+          question: "Both layers are extremely hot. Why is the mantle mostly solid while the outer core is liquid?",
+          choices: ["The mantle is colder", "Pressure and composition are different", "The mantle contains water", "The outer core is near space"],
+          answer: 1
+        },
+        {
+          question: "Scientists used changes in seismic wave speed to conclude that:",
+          choices: ["The core is empty", "Earth has multiple internal layers", "Earth is flat", "Fossils exist underground"],
+          answer: 1
+        }
+      ],
+      inner_core: [
+        {
+          question: "The inner core is solid even though it is extremely hot because:",
+          choices: ["It is frozen", "Pressure is extremely high", "It is made of rock", "It is near the crust"],
+          answer: 1
+        },
+        {
+          question: "As you move deeper into Earth, pressure:",
+          choices: ["Decreases", "Stays the same", "Increases", "Disappears"],
+          answer: 2
+        },
+        {
+          question: "If Earth did not have a solid inner core, seismic waves would most likely:",
+          choices: ["Move exactly the same", "Travel slower everywhere", "Behave differently near the center", "Stop at the crust"],
+          answer: 2
+        },
+        {
+          question: "Understanding Earth's layers helps explain plate tectonics because:",
+          choices: ["Plates float on water", "Heat from inside Earth drives mantle movement", "Fossils move the plates", "The crust spins independently"],
+          answer: 1
+        },
+        {
+          question: "Energy from deep inside Earth can cause earthquakes and volcanoes because:",
+          choices: ["Surface wind pushes plates", "Mantle movement shifts tectonic plates", "The ocean pulls continents apart", "The crust dissolves"],
+          answer: 1
+        }
+      ]
+    };
+
+    const REASONING_QUESTION_BANK =
+    {
+      "crust": [
+        {
+          "question": "A fossil of a sea creature is found on top of a mountain. What does this suggest about the history of that land?",
+          "choices": [
+            "The mountain formed underwater and later rose",
+            "The mantle created the fossil",
+            "The outer core pushed the fossil upward",
+            "The fossil formed inside magma"
+          ],
+          "answer": 0
+        },
+        {
+          "question": "Oceanic crust is thinner but denser than continental crust. What will most likely happen when they collide?",
+          "choices": [
+            "Oceanic crust will slide beneath continental crust",
+            "Continental crust will sink",
+            "Both will melt instantly",
+            "The inner core will rise"
+          ],
+          "answer": 0
+        },
+        {
+          "question": "If two plates slowly move apart on the ocean floor, new rock forms between them. What does this reveal about Earth\u2019s crust?",
+          "choices": [
+            "It stays the same size",
+            "It can be recycled and reshaped",
+            "It never changes",
+            "It floats on water"
+          ],
+          "answer": 1
+        },
+        {
+          "question": "If a fault line has not moved for many years, why might scientists still be concerned?",
+          "choices": [
+            "Energy may be building up along the fault",
+            "Fossils are forming",
+            "The mantle stopped moving",
+            "Soil is eroding"
+          ],
+          "answer": 0
+        }
+      ],
+      "mantle": [
+        {
+          "question": "If Earth\u2019s interior cooled significantly, how would plate movement most likely change?",
+          "choices": [
+            "Plates would move faster",
+            "Plates would stop moving",
+            "Plates would turn liquid",
+            "Plates would rise into space"
+          ],
+          "answer": 1
+        },
+        {
+          "question": "Why does hotter mantle material rise while cooler material sinks?",
+          "choices": [
+            "Hot rock is less dense than cool rock",
+            "Cool rock is lighter",
+            "The crust pulls it upward",
+            "Seismic waves push it"
+          ],
+          "answer": 0
+        },
+        {
+          "question": "If convection currents in the mantle become stronger, what is the most likely surface result?",
+          "choices": [
+            "Increased tectonic activity",
+            "Fewer earthquakes",
+            "Fossils forming faster",
+            "Ocean water heating instantly"
+          ],
+          "answer": 0
+        },
+        {
+          "question": "The mantle is solid but moves over long periods of time. What does this tell us about how materials behave under extreme heat and pressure?",
+          "choices": [
+            "Solids can slowly flow under certain conditions",
+            "All solids melt",
+            "Rocks cannot change shape",
+            "Pressure has no effect on matter"
+          ],
+          "answer": 0
+        }
+      ],
+      "outer_core": [
+        {
+          "question": "Scientists noticed that S-waves do not travel through part of Earth. What conclusion did they draw?",
+          "choices": [
+            "That region must be liquid",
+            "That region must be hollow",
+            "That region contains fossils",
+            "That region is colder"
+          ],
+          "answer": 0
+        },
+        {
+          "question": "If the outer core stopped moving, what would most likely happen?",
+          "choices": [
+            "Earth\u2019s magnetic field would weaken",
+            "Fossils would stop forming",
+            "Mountains would disappear",
+            "The mantle would freeze instantly"
+          ],
+          "answer": 0
+        },
+        {
+          "question": "Why can scientists learn about Earth\u2019s interior without drilling to the core?",
+          "choices": [
+            "They study seismic waves from earthquakes",
+            "They see the core from space",
+            "They measure soil layers",
+            "They use weather satellites"
+          ],
+          "answer": 0
+        }
+      ],
+      "inner_core": [
+        {
+          "question": "The inner core is hotter than the outer core but is solid. What does this suggest about pressure at Earth\u2019s center?",
+          "choices": [
+            "Pressure is strong enough to keep material solid",
+            "There is no pressure",
+            "The inner core is cooler than scientists think",
+            "The mantle freezes it"
+          ],
+          "answer": 0
+        },
+        {
+          "question": "If pressure at Earth\u2019s center suddenly decreased, what would likely happen to the inner core?",
+          "choices": [
+            "It might become liquid",
+            "It would disappear",
+            "It would cool instantly",
+            "It would rise to the crust"
+          ],
+          "answer": 0
+        }
+      ],
+      "systems": [
+        {
+          "question": "Which sequence best explains how heat inside Earth can cause an earthquake?",
+          "choices": [
+            "Heat \u2192 convection \u2192 plate movement \u2192 sudden slip",
+            "Fossils \u2192 crust \u2192 mantle \u2192 earthquake",
+            "Magnetic field \u2192 soil \u2192 plates \u2192 volcano",
+            "Inner core \u2192 erosion \u2192 fault"
+          ],
+          "answer": 0
+        },
+        {
+          "question": "If Earth had no internal heat, what major geologic process would most likely stop?",
+          "choices": [
+            "Plate tectonics",
+            "Weathering",
+            "Erosion",
+            "Soil formation"
+          ],
+          "answer": 0
+        },
+        {
+          "question": "New ocean floor rock is youngest near mid-ocean ridges. What does this suggest about how crust forms?",
+          "choices": [
+            "It forms where plates move apart",
+            "It forms near the inner core",
+            "It forms only on land",
+            "It forms from soil"
+          ],
+          "answer": 0
+        },
+        {
+          "question": "Why do earthquakes often occur near plate boundaries instead of in the middle of plates?",
+          "choices": [
+            "Stress builds where plates interact",
+            "The mantle is colder there",
+            "Fossils are nearby",
+            "The core is rising"
+          ],
+          "answer": 0
+        },
+        {
+          "question": "If mantle convection stopped but Earth still had crust, what would most likely decrease over time?",
+          "choices": [
+            "Earthquake activity",
+            "Soil depth",
+            "Ocean levels",
+            "Fossil formation"
+          ],
+          "answer": 0
+        },
+        {
+          "question": "Why is the crust cooler than the mantle?",
+          "choices": [
+            "It is farther from Earth\u2019s internal heat source",
+            "It contains fossils",
+            "It touches the ocean",
+            "It blocks seismic waves"
+          ],
+          "answer": 0
+        },
+        {
+          "question": "Scientists compare Earth\u2019s layers to an apple. Why is this model useful?",
+          "choices": [
+            "It helps visualize thickness and layering",
+            "It proves Earth is fruit",
+            "It shows fossils in the mantle",
+            "It explains magnetic fields"
+          ],
+          "answer": 0
+        }
+      ]
+    }
+    ;
+
+    for (const [layerId, questions] of Object.entries(REASONING_QUESTION_BANK)) {
+      if (layerId === "systems") continue;
+      if (!QUESTION_BANK[layerId]) QUESTION_BANK[layerId] = [];
+      QUESTION_BANK[layerId].push(...questions);
+    }
+
+    const SYSTEMS_QUESTIONS = REASONING_QUESTION_BANK.systems || [];
+    for (const layerId of ["crust", "mantle", "outer_core", "inner_core"]) {
+      if (!QUESTION_BANK[layerId]) QUESTION_BANK[layerId] = [];
+      QUESTION_BANK[layerId].push(...SYSTEMS_QUESTIONS);
+    }
+    const TREASURE_BANK = {
+      crust: [
+        {
+          name: "Fossil Fragment",
+          type: "material",
+          description: "Preserved remains of ancient plants or animals found in sedimentary rock.",
+          rarity: "common",
+          icon: "\ud83e\uddb4"
+        },
+        {
+          name: "Sedimentary Rock Layer",
+          type: "material",
+          description: "Layered rock formed from deposited sediments over time.",
+          rarity: "common",
+          icon: "\ud83e\udea8"
+        },
+        {
+          name: "Quartz Crystal Vein",
+          type: "material",
+          description: "Mineral deposit formed in cracks within the crust.",
+          rarity: "uncommon",
+          icon: "\ud83d\udc8e"
+        },
+        {
+          name: "Fault Line Crack",
+          type: "process",
+          description: "Fracture in Earth's crust where movement can cause earthquakes.",
+          rarity: "uncommon",
+          icon: "\u26a1"
+        },
+        {
+          name: "Basalt Block",
+          type: "material",
+          description: "Dark volcanic rock forming oceanic crust.",
+          rarity: "common",
+          icon: "\u2b1b"
+        }
+      ],
+      mantle: [
+        {
+          name: "Peridotite Rock",
+          type: "material",
+          description: "Dense greenish rock that makes up most of the upper mantle.",
+          rarity: "common",
+          icon: "\ud83d\udfe2"
+        },
+        {
+          name: "Convection Current",
+          type: "process",
+          description: "Slow circular movement of heated mantle material that drives plate motion.",
+          rarity: "common",
+          icon: "\ud83d\udd04"
+        },
+        {
+          name: "Magma Pocket",
+          type: "process",
+          description: "Molten rock chamber that can rise toward the crust.",
+          rarity: "uncommon",
+          icon: "\ud83d\udd25"
+        },
+        {
+          name: "Diamond Formation",
+          type: "material",
+          description: "Carbon compressed under extreme mantle pressure to form diamonds.",
+          rarity: "rare",
+          icon: "\ud83d\udca0"
+        }
+      ],
+      outer_core: [
+        {
+          name: "Liquid Iron-Nickel Flow",
+          type: "material",
+          description: "Molten metal layer responsible for generating Earth's magnetic field.",
+          rarity: "common",
+          icon: "\ud83c\udf0a"
+        },
+        {
+          name: "Magnetic Field Pulse",
+          type: "process",
+          description: "Movement of liquid metal creating Earth's magnetic field.",
+          rarity: "uncommon",
+          icon: "\ud83e\uddf2"
+        },
+        {
+          name: "Seismic Wave Distortion",
+          type: "measurement",
+          description: "Evidence showing S-waves stop and P-waves slow in liquid layers.",
+          rarity: "uncommon",
+          icon: "\ud83d\udce1"
+        }
+      ],
+      inner_core: [
+        {
+          name: "Solid Iron-Nickel Crystal",
+          type: "material",
+          description: "Extremely dense solid metal formed under immense pressure.",
+          rarity: "rare",
+          icon: "\ud83d\udd34"
+        },
+        {
+          name: "Extreme Pressure Compression",
+          type: "process",
+          description: "Intense pressure that keeps the inner core solid despite extreme heat.",
+          rarity: "rare",
+          icon: "\ud83d\udcc8"
+        },
+        {
+          name: "Seismic Wave Reflection",
+          type: "measurement",
+          description: "P-waves bend and reflect at the boundary of the inner core.",
+          rarity: "uncommon",
+          icon: "\ud83d\udcca"
+        }
+      ]
+    };
+
+    const boardEl = document.getElementById("board");
+    const legendEl = document.getElementById("legend");
+    const factsEl = document.getElementById("facts");
+    const messageEl = document.getElementById("message");
+    const blocksDugEl = document.getElementById("blocksDug");
+    const depthEl = document.getElementById("depth");
+    const currentLayerEl = document.getElementById("currentLayer");
+    const quizScoreEl = document.getElementById("quizScore");
+    const discoveryPointsEl = document.getElementById("discoveryPoints");
+    const treasureCountEl = document.getElementById("treasureCount");
+    const fillEl = document.getElementById("fill");
+    const tempValueEl = document.getElementById("tempValue");
+    const tempFillEl = document.getElementById("tempFill");
+    const pressureValueEl = document.getElementById("pressureValue");
+    const pressureFillEl = document.getElementById("pressureFill");
+    const stateValueEl = document.getElementById("stateValue");
+    const pointsFillPosEl = document.getElementById("pointsFillPos");
+    const pointsFillNegEl = document.getElementById("pointsFillNeg");
+    const pointsMarkerEl = document.getElementById("pointsMarker");
+    const pointsThermoValueEl = document.getElementById("pointsThermoValue");
+    const pointsThermoCardEl = document.getElementById("pointsThermoCard");
+    const pointsPeakBurstEl = document.getElementById("pointsPeakBurst");
+
+    const quizPanelEl = document.getElementById("quizPanel");
+    const quizTitleEl = document.getElementById("quizTitle");
+    const quizQuestionEl = document.getElementById("quizQuestion");
+    const answersEl = document.getElementById("answers");
+    const treasuresEl = document.getElementById("treasures");
+    const eventSplashEl = document.getElementById("eventSplash");
+    const eventKickerEl = document.getElementById("eventKicker");
+    const eventTitleEl = document.getElementById("eventTitle");
+    const eventTextEl = document.getElementById("eventText");
+
+    const restartBtn = document.getElementById("restartBtn");
+
+    let grid = [];
+    let topByCol = [];
+    let blocksDug = 0;
+    let deepestRow = -1;
+    let quizScore = 0;
+    let discoveryPoints = 0;
+    let quizzesAsked = 0;
+    let treasureCount = 0;
+    let gameWon = false;
+    let activeQuiz = null;
+    let splashTimer = null;
+    let splashHidingTimer = null;
+    let splashActive = false;
+    let eventAudioCtx = null;
+    const MAX_TEMP_C = 6000;
+    const MAX_PRESSURE_GPA = 360;
+    const POINTS_THERMO_MIN = -120;
+    const POINTS_THERMO_MAX = 120;
+    const POINTS_HIGH_RATIO = 0.9;
+
+    const discoveredLayers = new Set();
+    const foundTreasureKeys = new Set();
+    const askedQuestionIndicesByLayer = new Map();
+    const correctAnswersByLayer = new Map();
+    const digsByLayer = new Map();
+    const nextQuizAtDigByLayer = new Map();
+    const layerRowBudgetByLayer = new Map();
+    const foundTreasures = [];
+    const splashQueue = [];
+    let nextTreasureAt = 4;
+    let pointsPeakActive = false;
+
+    function depthForRow(row) {
+      return Math.round(((row + 1) / ROWS) * EARTH_DEPTH_KM);
+    }
+
+    function layerForRow(row) {
+      const depth = ((row + 0.5) / ROWS) * EARTH_DEPTH_KM;
+      return layers.find((layer) => depth >= layer.minDepth && depth < layer.maxDepth) || layers[layers.length - 1];
+    }
+
+    function currentLayer() {
+      if (deepestRow < 0) {
+        return layers[0];
+      }
+      return layerForRow(deepestRow);
+    }
+
+    function setMessage(text) {
+      messageEl.textContent = text;
+    }
+
+    function depthToPercent(depthKm) {
+      return (depthKm / EARTH_DEPTH_KM) * 100;
+    }
+
+    function queueEventSplash(kicker, title, text, variant = "layer") {
+      splashQueue.push({ kicker, title, text, variant });
+      if (!splashActive) {
+        showNextSplash();
+      }
+    }
+
+    function showNextSplash() {
+      if (!splashQueue.length) {
+        splashActive = false;
+        return;
+      }
+      splashActive = true;
+      const next = splashQueue.shift();
+      eventKickerEl.textContent = next.kicker;
+      eventTitleEl.textContent = next.title;
+      eventTextEl.textContent = next.text;
+      eventSplashEl.className = `event-splash ${next.variant} show`;
+      playEventSound(next.variant);
+
+      clearTimeout(splashTimer);
+      clearTimeout(splashHidingTimer);
+
+      splashTimer = setTimeout(() => {
+        eventSplashEl.classList.remove("show");
+        splashHidingTimer = setTimeout(showNextSplash, 220);
+      }, 3200);
+    }
+
+    function resetSplashSystem() {
+      splashQueue.length = 0;
+      splashActive = false;
+      clearTimeout(splashTimer);
+      clearTimeout(splashHidingTimer);
+      eventSplashEl.classList.remove("show", "layer", "treasure", "mission");
+    }
+
+    function ensureAudioContext() {
+      if (eventAudioCtx) return eventAudioCtx;
+      const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextCtor) return null;
+      eventAudioCtx = new AudioContextCtor();
+      return eventAudioCtx;
+    }
+
+    function playTone(ctx, freq, startAt, duration, type = "sine", gain = 0.08) {
+      const osc = ctx.createOscillator();
+      const amp = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, startAt);
+      amp.gain.setValueAtTime(0.0001, startAt);
+      amp.gain.exponentialRampToValueAtTime(gain, startAt + 0.02);
+      amp.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+      osc.connect(amp);
+      amp.connect(ctx.destination);
+      osc.start(startAt);
+      osc.stop(startAt + duration + 0.02);
+    }
+
+    function playEventSound(variant) {
+      const ctx = ensureAudioContext();
+      if (!ctx) return;
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
+
+      const now = ctx.currentTime + 0.01;
+      if (variant === "mission") {
+        playTone(ctx, 392, now, 0.14, "triangle", 0.09);
+        playTone(ctx, 523.25, now + 0.16, 0.14, "triangle", 0.09);
+        playTone(ctx, 659.25, now + 0.32, 0.2, "triangle", 0.1);
+        return;
+      }
+
+      if (variant === "treasure") {
+        playTone(ctx, 740, now, 0.11, "square", 0.07);
+        playTone(ctx, 987.77, now + 0.12, 0.15, "square", 0.08);
+        return;
+      }
+
+      playTone(ctx, 523.25, now, 0.14, "sine", 0.07);
+      playTone(ctx, 659.25, now + 0.12, 0.16, "sine", 0.08);
+    }
+
+    function playDigSound() {
+      const ctx = ensureAudioContext();
+      if (!ctx) return;
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
+
+      const now = ctx.currentTime + 0.005;
+
+      const thunk = ctx.createOscillator();
+      const thunkGain = ctx.createGain();
+      thunk.type = "triangle";
+      thunk.frequency.setValueAtTime(180, now);
+      thunk.frequency.exponentialRampToValueAtTime(92, now + 0.08);
+      thunkGain.gain.setValueAtTime(0.0001, now);
+      thunkGain.gain.exponentialRampToValueAtTime(0.11, now + 0.007);
+      thunkGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+      thunk.connect(thunkGain);
+      thunkGain.connect(ctx.destination);
+      thunk.start(now);
+      thunk.stop(now + 0.1);
+
+      const click = ctx.createOscillator();
+      const clickGain = ctx.createGain();
+      click.type = "square";
+      click.frequency.setValueAtTime(1200, now);
+      click.frequency.exponentialRampToValueAtTime(260, now + 0.03);
+      clickGain.gain.setValueAtTime(0.0001, now);
+      clickGain.gain.exponentialRampToValueAtTime(0.03, now + 0.002);
+      clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.035);
+      click.connect(clickGain);
+      clickGain.connect(ctx.destination);
+      click.start(now);
+      click.stop(now + 0.04);
+    }
+
+    function playPointsSound(delta) {
+      if (!delta) return;
+      const ctx = ensureAudioContext();
+      if (!ctx) return;
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
+
+      const now = ctx.currentTime + 0.01;
+      if (delta > 0) {
+        playTone(ctx, 659.25, now, 0.08, "sine", 0.045);
+        playTone(ctx, 880, now + 0.09, 0.1, "sine", 0.05);
+        return;
+      }
+
+      playTone(ctx, 246.94, now, 0.11, "sawtooth", 0.045);
+      playTone(ctx, 196, now + 0.1, 0.13, "sawtooth", 0.05);
+    }
+
+    function createLegend() {
+      legendEl.innerHTML = "";
+      for (const layer of layers) {
+        const item = document.createElement("div");
+        item.className = "legend-item";
+        item.innerHTML = `
+          <span class="swatch" style="background:${layer.color}"></span>
+          <span class="legend-text">
+            <strong>${layer.name}</strong>
+            <span class="legend-meta">${layer.matterState}</span>
+            <span class="legend-meta">${layer.tempRangeC[0].toLocaleString()}-${layer.tempRangeC[1].toLocaleString()} C | ${layer.pressureRangeGPa[0]}-${layer.pressureRangeGPa[1]} GPa</span>
+          </span>
+        `;
+        legendEl.appendChild(item);
+      }
+    }
+
+    function randomTreasureSpacing() {
+      return 3 + Math.floor(Math.random() * 3);
+    }
+
+    function targetForLayer(layerId) {
+      return LAYER_QUESTION_TARGETS[layerId] || 0;
+    }
+
+    function layerLabel(layerId) {
+      const layer = layers.find((item) => item.id === layerId);
+      return layer ? layer.name : layerId.replace("_", " ");
+    }
+
+    function correctCountForLayer(layerId) {
+      return correctAnswersByLayer.get(layerId) || 0;
+    }
+
+    function digCountForLayer(layerId) {
+      return digsByLayer.get(layerId) || 0;
+    }
+
+    function remainingForLayer(layerId) {
+      return Math.max(0, targetForLayer(layerId) - correctCountForLayer(layerId));
+    }
+
+    function buildLayerRowBudget() {
+      const counts = new Map(layers.map((layer) => [layer.id, 0]));
+      for (let row = 0; row < ROWS; row += 1) {
+        const layerId = layerForRow(row).id;
+        counts.set(layerId, (counts.get(layerId) || 0) + 1);
+      }
+      return counts;
+    }
+
+    function randomLayerQuizGap(layerId) {
+      if (layerId === "crust") return 1;
+      const remainingQuestions = remainingForLayer(layerId);
+      if (remainingQuestions <= 0) return 1;
+
+      const dug = digCountForLayer(layerId);
+      const rowBudget = layerRowBudgetByLayer.get(layerId) || 8;
+      const remainingDigBudget = Math.max(1, rowBudget - dug);
+      const safeMaxGap = Math.max(1, Math.floor(remainingDigBudget / remainingQuestions));
+      const maxGap = Math.max(1, Math.min(4, safeMaxGap + 1));
+      return 1 + Math.floor(Math.random() * maxGap);
+    }
+
+    function scheduleNextLayerQuiz(layerId) {
+      if (remainingForLayer(layerId) <= 0) {
+        nextQuizAtDigByLayer.delete(layerId);
+        return;
+      }
+
+      if (layerId === "crust") {
+        nextQuizAtDigByLayer.set(layerId, 1);
+        return;
+      }
+
+      const dug = digCountForLayer(layerId);
+      nextQuizAtDigByLayer.set(layerId, dug + randomLayerQuizGap(layerId));
+    }
+
+    function ensureLayerQuizSchedule(layerId) {
+      if (nextQuizAtDigByLayer.has(layerId)) return;
+      scheduleNextLayerQuiz(layerId);
+    }
+
+    function scheduleNextTreasure() {
+      nextTreasureAt = blocksDug + randomTreasureSpacing();
+    }
+
+    function rarityLabel(rarity) {
+      return rarity.charAt(0).toUpperCase() + rarity.slice(1);
+    }
+
+    function treasurePointsForRarity(rarity) {
+      if (rarity === "rare") return 4;
+      if (rarity === "uncommon") return 3;
+      return 2;
+    }
+
+    function quizPointsForAttempt(attemptNumber) {
+      if (attemptNumber <= 1) return 5;
+      if (attemptNumber === 2) return 2;
+      if (attemptNumber === 3) return -4;
+      return -6;
+    }
+
+    function renderTreasures() {
+      treasuresEl.innerHTML = "";
+      for (const treasure of foundTreasures.slice().reverse()) {
+        const card = document.createElement("article");
+        card.className = "treasure-card";
+        card.innerHTML = `
+          <h3 class="treasure-head">
+            <span><span class="treasure-icon">${treasure.icon}</span>${treasure.name}</span>
+            <span class="rarity ${treasure.rarity}">${rarityLabel(treasure.rarity)}</span>
+          </h3>
+          <p class="treasure-meta">${treasure.description}</p>
+          <p class="treasure-meta">Layer: ${treasure.layerName} | Type: ${treasure.type} | Depth: ${treasure.foundAtDepthKm.toLocaleString()} km | +${treasure.pointsEarned} pts</p>
+        `;
+        treasuresEl.appendChild(card);
+      }
+    }
+
+    function maybeDiscoverTreasure(layerId) {
+      if (blocksDug < nextTreasureAt) return null;
+      const pool = TREASURE_BANK[layerId] || [];
+      if (!pool.length) {
+        scheduleNextTreasure();
+        return null;
+      }
+
+      const fresh = pool.filter((treasure) => !foundTreasureKeys.has(`${layerId}|${treasure.name}`));
+      const options = fresh.length ? fresh : pool;
+      const picked = options[Math.floor(Math.random() * options.length)];
+      foundTreasureKeys.add(`${layerId}|${picked.name}`);
+
+      const layer = layers.find((item) => item.id === layerId);
+      const foundAtDepthKm = deepestRow >= 0 ? depthForRow(deepestRow) : 0;
+      const treasure = {
+        ...picked,
+        layerId,
+        layerName: layer ? layer.name : layerId,
+        foundAtDepthKm,
+        pointsEarned: treasurePointsForRarity(picked.rarity)
+      };
+
+      foundTreasures.push(treasure);
+      discoveryPoints += treasure.pointsEarned;
+      playPointsSound(treasure.pointsEarned);
+      treasureCount = foundTreasures.length;
+      renderTreasures();
+      scheduleNextTreasure();
+      return treasure;
+    }
+
+    function getQuestionForLayer(layerId) {
+      const pool = QUESTION_BANK[layerId] || [];
+      if (!pool.length) return null;
+      if (!askedQuestionIndicesByLayer.has(layerId)) {
+        askedQuestionIndicesByLayer.set(layerId, new Set());
+      }
+
+      const used = askedQuestionIndicesByLayer.get(layerId);
+      let available = pool.map((_, index) => index).filter((index) => !used.has(index));
+      if (!available.length) {
+        used.clear();
+        available = pool.map((_, index) => index);
+      }
+
+      const pickedIndex = available[Math.floor(Math.random() * available.length)];
+      used.add(pickedIndex);
+      const picked = pool[pickedIndex];
+      return {
+        layerId,
+        question: picked.question,
+        choices: picked.choices,
+        answer: picked.answer
+      };
+    }
+
+    function startLayerQuiz(layerId, promptText) {
+      if (activeQuiz || gameWon) return false;
+      if (remainingForLayer(layerId) <= 0) return false;
+      const question = getQuestionForLayer(layerId);
+      if (!question) return false;
+      quizzesAsked += 1;
+      activeQuiz = {
+        ...question,
+        number: quizzesAsked,
+        attempts: 0
+      };
+      const remain = remainingForLayer(layerId);
+      const askedInLayer = targetForLayer(layerId) - remain + 1;
+      setMessage(promptText || `Checkpoint ${quizzesAsked}: Answer this ${layerLabel(layerId)} question (${askedInLayer}/${targetForLayer(layerId)} for this layer).`);
+      renderQuiz();
+      return true;
+    }
+
+    function maybeTriggerScheduledLayerQuiz(layerId) {
+      if (activeQuiz || gameWon) return false;
+      if (remainingForLayer(layerId) <= 0) return false;
+      ensureLayerQuizSchedule(layerId);
+      const triggerAt = nextQuizAtDigByLayer.get(layerId);
+      if (triggerAt == null) return false;
+      if (digCountForLayer(layerId) < triggerAt) return false;
+      return startLayerQuiz(layerId);
+    }
+
+    function completeMissionIfReady() {
+      if (gameWon) return false;
+      if (deepestRow !== ROWS - 1) return false;
+      if (remainingForLayer("inner_core") > 0) return false;
+      gameWon = true;
+      setMessage(`${messageEl.textContent} Mission complete. You reached Earth's inner core and finished all geology checkpoints.`);
+      queueEventSplash("Mission Complete", "Inner Core Reached", "You made it to the center of this Earth model.", "mission");
+      return true;
+    }
+
+    function updateDiscoveryThermometer() {
+      if (!pointsFillPosEl || !pointsFillNegEl || !pointsMarkerEl || !pointsThermoValueEl) return;
+      const clamped = Math.max(POINTS_THERMO_MIN, Math.min(POINTS_THERMO_MAX, discoveryPoints));
+      const posRatio = clamped > 0 ? clamped / POINTS_THERMO_MAX : 0;
+      const negRatio = clamped < 0 ? Math.abs(clamped / POINTS_THERMO_MIN) : 0;
+
+      pointsFillPosEl.style.height = `${posRatio * 50}%`;
+      pointsFillNegEl.style.height = `${negRatio * 50}%`;
+
+      const markerTop = clamped >= 0
+        ? (50 - (posRatio * 50))
+        : (50 + (negRatio * 50));
+      const boundedMarkerTop = Math.max(1.5, Math.min(98.5, markerTop));
+      pointsMarkerEl.style.top = `calc(${boundedMarkerTop}% - 3px)`;
+      pointsMarkerEl.style.backgroundColor = clamped > 0 ? "#f4d271" : clamped < 0 ? "#ef8c79" : "#d9c0a1";
+
+      pointsThermoValueEl.textContent = `${discoveryPoints} pts`;
+      pointsThermoValueEl.className = `points-value ${discoveryPoints > 0 ? "positive" : discoveryPoints < 0 ? "negative" : "neutral"}`;
+
+      const highThreshold = POINTS_THERMO_MAX * POINTS_HIGH_RATIO;
+      const isHigh = clamped >= highThreshold;
+      if (isHigh && !pointsPeakActive) {
+        pointsPeakActive = true;
+        if (pointsThermoCardEl) {
+          pointsThermoCardEl.classList.add("peak");
+        }
+        if (pointsPeakBurstEl) {
+          pointsPeakBurstEl.classList.remove("run");
+          void pointsPeakBurstEl.offsetWidth;
+          pointsPeakBurstEl.classList.add("run");
+        }
+      } else if (!isHigh && pointsPeakActive) {
+        pointsPeakActive = false;
+        if (pointsThermoCardEl) {
+          pointsThermoCardEl.classList.remove("peak");
+        }
+        if (pointsPeakBurstEl) {
+          pointsPeakBurstEl.classList.remove("run");
+        }
+      }
+    }
+
+    function renderFacts() {
+      factsEl.innerHTML = "";
+      const ordered = layers.filter((layer) => discoveredLayers.has(layer.id));
+
+      for (const layer of ordered.reverse()) {
+        const card = document.createElement("article");
+        card.className = "fact-card";
+
+        const items = layer.facts.map((fact) => `<li>${fact}</li>`).join("");
+        card.innerHTML = `
+          <h3>
+            ${layer.name}
+            <span class="state">${layer.state}</span>
+          </h3>
+          <ul>${items}</ul>
+        `;
+
+        factsEl.appendChild(card);
+      }
+    }
+
+    function renderQuiz() {
+      if (!activeQuiz) {
+        quizPanelEl.classList.remove("show");
+        return;
+      }
+
+      const layer = layers.find((item) => item.id === activeQuiz.layerId);
+      if (!layer) return;
+
+      quizPanelEl.classList.add("show");
+      const done = correctCountForLayer(layer.id);
+      const needed = targetForLayer(layer.id);
+      quizTitleEl.textContent = `Checkpoint ${activeQuiz.number}: ${layer.name} (${done}/${needed} correct)`;
+      quizQuestionEl.textContent = activeQuiz.question;
+      answersEl.innerHTML = "";
+
+      activeQuiz.choices.forEach((choice, index) => {
+        const answerButton = document.createElement("button");
+        answerButton.type = "button";
+        answerButton.textContent = choice;
+        answerButton.addEventListener("click", () => {
+          answerQuestion(index);
+        });
+        answersEl.appendChild(answerButton);
+      });
+    }
+
+    function answerQuestion(chosenIndex) {
+      if (!activeQuiz) return;
+      activeQuiz.attempts += 1;
+
+      if (chosenIndex === activeQuiz.answer) {
+        quizScore += 1;
+        const layerId = activeQuiz.layerId;
+        const pointsEarned = quizPointsForAttempt(activeQuiz.attempts);
+        discoveryPoints += pointsEarned;
+        playPointsSound(pointsEarned);
+        const nextCount = correctCountForLayer(layerId) + 1;
+        correctAnswersByLayer.set(layerId, nextCount);
+        const rightText = activeQuiz.choices[activeQuiz.answer];
+        activeQuiz = null;
+        const remaining = remainingForLayer(layerId);
+        const pointsText = pointsEarned > 0
+          ? ` +${pointsEarned} points.`
+          : pointsEarned < 0
+            ? ` ${pointsEarned} points.`
+            : " No discovery points for this question.";
+        if (remaining > 0) {
+          scheduleNextLayerQuiz(layerId);
+          setMessage(`Correct! ${rightText}.${pointsText} ${remaining} more question(s) needed in ${layerLabel(layerId)}.`);
+        } else {
+          nextQuizAtDigByLayer.delete(layerId);
+          setMessage(`Correct! ${rightText}.${pointsText} ${layerLabel(layerId)} requirement complete. Keep digging.`);
+          completeMissionIfReady();
+        }
+      } else {
+        setMessage("Try again. Reread the layer facts in your notebook for a clue.");
+      }
+
+      refreshStats();
+      renderBoard();
+      renderQuiz();
+    }
+
+    function refreshStats() {
+      blocksDugEl.textContent = `Blocks Dug: ${blocksDug}`;
+
+      const depth = deepestRow >= 0 ? depthForRow(deepestRow) : 0;
+      depthEl.textContent = `Deepest Depth: ${depth.toLocaleString()} km`;
+      const layer = currentLayer();
+      currentLayerEl.textContent = `Current Layer: ${layer.name}`;
+      quizScoreEl.textContent = `Quiz Score: ${quizScore} / ${TOTAL_REQUIRED_QUESTIONS}`;
+      discoveryPointsEl.textContent = `Discovery Points: ${discoveryPoints}`;
+      updateDiscoveryThermometer();
+      treasureCountEl.textContent = `Treasures Found: ${treasureCount}`;
+
+      const progress = Math.max(0, ((deepestRow + 1) / ROWS) * 100);
+      fillEl.style.width = `${Math.min(progress, 100)}%`;
+
+      const localDepth = Math.max(0, Math.min(depth, layer.maxDepth) - layer.minDepth);
+      const layerThickness = Math.max(1, layer.maxDepth - layer.minDepth);
+      const ratio = localDepth / layerThickness;
+
+      const tempC = Math.round(layer.tempRangeC[0] + (layer.tempRangeC[1] - layer.tempRangeC[0]) * ratio);
+      const pressureGPa = (layer.pressureRangeGPa[0] + (layer.pressureRangeGPa[1] - layer.pressureRangeGPa[0]) * ratio);
+
+      tempValueEl.textContent = `${tempC.toLocaleString()} C`;
+      pressureValueEl.textContent = `${pressureGPa.toFixed(1)} GPa`;
+      stateValueEl.textContent = layer.matterState;
+
+      tempFillEl.style.width = `${Math.min(100, (tempC / MAX_TEMP_C) * 100)}%`;
+      pressureFillEl.style.width = `${Math.min(100, (pressureGPa / MAX_PRESSURE_GPA) * 100)}%`;
+    }
+
+    function renderBoard() {
+      boardEl.innerHTML = "";
+      boardEl.style.setProperty("--cols", COLS);
+
+      for (let col = 0; col < COLS; col += 1) {
+        const colEl = document.createElement("div");
+        colEl.className = "column";
+
+        for (let row = 0; row < ROWS; row += 1) {
+          const block = grid[row][col];
+          const blockButton = document.createElement("button");
+          blockButton.type = "button";
+          blockButton.className = "block";
+          blockButton.dataset.col = String(col);
+          blockButton.dataset.row = String(row);
+          const xOffset = (col * 7 + row * 3) % 48;
+          const yOffset = (row * 11 + col * 5) % 48;
+          blockButton.style.backgroundColor = block.layer.color;
+          blockButton.style.backgroundImage = block.layer.textureImage;
+          blockButton.style.backgroundSize = block.layer.textureSize;
+          blockButton.style.backgroundPosition = `0 0, ${xOffset}px ${yOffset}px, ${(xOffset + 11) % 48}px ${(yOffset + 17) % 48}px`;
+          blockButton.style.backgroundBlendMode = "multiply, normal, overlay";
+          blockButton.setAttribute("aria-label", `${block.layer.name} block at about ${depthForRow(row)} kilometers`);
+
+          if (block.dug) {
+            blockButton.classList.add("dug");
+          }
+
+          const isTop = row === topByCol[col] && row < ROWS;
+          const isOpenTop = isTop && !block.dug && !gameWon;
+          const canDig = isOpenTop && !activeQuiz;
+          if (isOpenTop) {
+            blockButton.classList.add("top-block");
+            blockButton.title = activeQuiz ? "Answer checkpoint quiz to continue digging." : "Dig here";
+          }
+          if (canDig) {
+            blockButton.classList.add("diggable");
+          }
+
+          colEl.appendChild(blockButton);
+        }
+
+        boardEl.appendChild(colEl);
+      }
+    }
+
+    function unlockLayer(layer) {
+      discoveredLayers.add(layer.id);
+      renderFacts();
+      queueEventSplash(
+        "New Layer Discovered",
+        layer.name,
+        `${layer.matterState} | ${layer.tempRangeC[0].toLocaleString()}-${layer.tempRangeC[1].toLocaleString()} C`,
+        "layer"
+      );
+      ensureLayerQuizSchedule(layer.id);
+      setMessage(`New layer found: ${layer.name}. Keep digging for more clues.`);
+    }
+
+    function dig(col) {
+      if (activeQuiz) {
+        setMessage("Checkpoint active. Answer the quiz in the notebook to continue digging.");
+        return;
+      }
+
+      if (gameWon) {
+        setMessage("You already reached the inner core. Press Restart Mission to play again.");
+        return;
+      }
+
+      const row = topByCol[col];
+      if (row >= ROWS) {
+        setMessage("This tunnel is fully dug. Choose another column.");
+        return;
+      }
+
+      const block = grid[row][col];
+      const previousRow = row - 1;
+      if (previousRow >= 0) {
+        const previousLayer = layerForRow(previousRow);
+        if (previousLayer.id !== block.layer.id && remainingForLayer(previousLayer.id) > 0) {
+          const needed = remainingForLayer(previousLayer.id);
+          const started = startLayerQuiz(
+            previousLayer.id,
+            `Before entering ${block.layer.name}, answer ${needed} more question(s) about ${previousLayer.name}.`
+          );
+          if (started) {
+            refreshStats();
+            renderBoard();
+            renderQuiz();
+            return;
+          }
+        }
+      }
+
+      playDigSound();
+      block.dug = true;
+      topByCol[col] += 1;
+      blocksDug += 1;
+      digsByLayer.set(block.layer.id, digCountForLayer(block.layer.id) + 1);
+
+      if (row > deepestRow) {
+        deepestRow = row;
+      }
+
+      const layer = block.layer;
+      if (!discoveredLayers.has(layer.id)) {
+        unlockLayer(layer);
+      } else {
+        setMessage(`You are mining through the ${layer.name}.`);
+      }
+
+      const treasure = maybeDiscoverTreasure(layer.id);
+      if (treasure) {
+        setMessage(`${messageEl.textContent} Treasure found: ${treasure.icon} ${treasure.name} (${rarityLabel(treasure.rarity)}) for +${treasure.pointsEarned} points.`);
+        queueEventSplash(
+          "Treasure Found",
+          `${treasure.icon} ${treasure.name}`,
+          `${rarityLabel(treasure.rarity)} ${treasure.type} in ${treasure.layerName}`,
+          "treasure"
+        );
+      }
+
+      if (layer.id === "inner_core" && row === ROWS - 1 && remainingForLayer("inner_core") > 0) {
+        const needed = remainingForLayer("inner_core");
+        startLayerQuiz("inner_core", `You are near the center. Answer ${needed} more inner core question(s) to complete the mission.`);
+      }
+
+      if (!gameWon) {
+        maybeTriggerScheduledLayerQuiz(layer.id);
+      }
+
+      completeMissionIfReady();
+
+      refreshStats();
+      renderBoard();
+      renderQuiz();
+    }
+
+    function initGame() {
+      grid = Array.from({ length: ROWS }, (_, row) =>
+        Array.from({ length: COLS }, (_, col) => ({
+          row,
+          col,
+          dug: false,
+          layer: layerForRow(row)
+        }))
+      );
+
+      topByCol = Array(COLS).fill(0);
+      blocksDug = 0;
+      deepestRow = -1;
+      quizScore = 0;
+      discoveryPoints = 0;
+      pointsPeakActive = false;
+      quizzesAsked = 0;
+      treasureCount = 0;
+      gameWon = false;
+      activeQuiz = null;
+      restartBtn.disabled = false;
+
+      discoveredLayers.clear();
+      foundTreasureKeys.clear();
+      askedQuestionIndicesByLayer.clear();
+      correctAnswersByLayer.clear();
+      digsByLayer.clear();
+      nextQuizAtDigByLayer.clear();
+      layerRowBudgetByLayer.clear();
+      for (const [layerId, count] of buildLayerRowBudget()) {
+        layerRowBudgetByLayer.set(layerId, count);
+      }
+      foundTreasures.length = 0;
+      scheduleNextTreasure();
+
+      factsEl.innerHTML = "";
+      treasuresEl.innerHTML = "";
+      resetSplashSystem();
+      if (pointsThermoCardEl) {
+        pointsThermoCardEl.classList.remove("peak");
+      }
+      if (pointsPeakBurstEl) {
+        pointsPeakBurstEl.classList.remove("run");
+      }
+      setMessage("Mission start: Dig a glowing block to begin your trip through Earth's layers.");
+
+      refreshStats();
+      renderBoard();
+      renderQuiz();
+    }
+
+    boardEl.addEventListener("click", (event) => {
+      ensureAudioContext();
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (!target.classList.contains("block")) return;
+
+      const col = Number(target.dataset.col);
+      const row = Number(target.dataset.row);
+
+      if (Number.isNaN(col) || Number.isNaN(row)) return;
+
+      if (row !== topByCol[col]) {
+        setMessage("You can only dig the top glowing block in each column.");
+        return;
+      }
+
+      dig(col);
+    });
+
+    restartBtn.addEventListener("click", initGame);
+
+    createLegend();
+    initGame();
+  </script>
+</body>
+</html>
